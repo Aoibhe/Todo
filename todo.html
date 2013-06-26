@@ -1,12 +1,111 @@
-<html>
-<head>
-	<title>ToDo</title>
-</head>
-<body>
-<div id="todo-app">
-    <label class="todo-label" for="new-todo">What do I need To Do?</label>
-    <input type="text" id="new-todo" class="todo-input">
+//(2) Make a simple html page to manage Todos. 
+//It should have an input field. When the user enters text in the input field, 
+// show that input in the page. When an existing item is clicked, it should disappear from the page.
 
-    <ul id="todo-list"></ul>
-</div>
-</body>
+//I had a lot of trouble with this one and need to get help from a friend, where as I did type this up most of the code was explained to me / given to me by said friend
+
+<!DOCTYPE html>
+<html>
+  <head>
+  	<title>Todo list</title>
+    <style>
+      body {
+        color: #456;
+        font: 16px Arial;
+      }
+      
+      body a {
+        color: #3D5C9D;
+        text-decoration: none;
+      }
+    </style>
+    <script>
+      var todolist = {};
+      todolist.webdb = {};
+      todolist.webdb.db = null;
+      
+      todolist.webdb.open = function() {
+        var dbSize = 5 * 1024 * 1024; 
+        todolist.webdb.db = openDatabase("Todo", "1.0", "Todo manager", dbSize);
+      }
+      
+      todolist.webdb.createTable = function() {
+        var db = todolist.webdb.db;
+        db.transaction(function(tx) {
+          tx.executeSql("CREATE TABLE IF NOT EXISTS todo(ID INTEGER PRIMARY KEY ASC, todo TEXT, added_on DATETIME)", []);
+        });
+      }
+      
+      todolist.webdb.addTodo = function(todoText) {
+        var db = todolist.webdb.db;
+        db.transaction(function(tx){
+          var addedOn = new Date();
+          tx.executeSql("INSERT INTO todo(todo, added_on) VALUES (?,?)",
+              [todoText, addedOn],
+              todolist.webdb.onSuccess,
+              todolist.webdb.onError);
+         });
+      }
+      
+      todolist.webdb.onError = function(tx, e) {
+        alert("There has been an error: " + e.message);
+      }
+      
+      todolist.webdb.onSuccess = function(tx, r) {
+        todolist.webdb.getAllTodoItems(loadTodoItems);
+      }
+      
+      todolist.webdb.getAllTodoItems = function(renderFunc) {
+        var db = todolist.webdb.db;
+        db.transaction(function(tx) {
+          tx.executeSql("SELECT * FROM todo", [], renderFunc,
+              todolist.webdb.onError);
+        });
+      }
+      
+      todolist.webdb.deleteTodo = function(id) {
+        var db = todolist.webdb.db;
+        db.transaction(function(tx){
+          tx.executeSql("DELETE FROM todo WHERE ID=?", [id],
+              todolist.webdb.onSuccess,
+              todolist.webdb.onError);
+          });
+      }
+      
+      function loadTodoItems(tx, rs) {
+        var rowOutput = "";
+        var todoItems = document.getElementById("todoItems");
+        for (var i=0; i < rs.rows.length; i++) {
+          rowOutput += renderTodo(rs.rows.item(i));
+        }
+      
+        todoItems.innerHTML = rowOutput;
+      }
+      
+      function renderTodo(row) {
+        return "<li>" + row.todo  + " [<a href='javascript:void(0);'  onclick='todolist.webdb.deleteTodo(" + row.ID +");'>Delete</a>]</li>";
+      }
+      
+      function init() {
+        todolist.webdb.open();
+        todolist.webdb.createTable();
+        todolist.webdb.getAllTodoItems(loadTodoItems);
+      }
+      
+      function addTodo() {
+        var todo = document.getElementById("todo");
+        todolist.webdb.addTodo(todo.value);
+        todo.value = "";
+      }
+    </script>
+  </head>
+  <body onload="init();">
+    <h3>Todo List</h3>
+    <ul id="todoItems">
+    </ul>
+    <form type="post" onsubmit="addTodo(); return false;">
+      <input type="text" id="todo" name="todo" placeholder="What should I add to the list?" style="width: 200px;" />
+      <input type="submit" value="Add to the list"/>
+    </form>
+  </body>
+</html>
